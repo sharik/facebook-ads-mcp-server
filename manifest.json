@@ -10,7 +10,7 @@
     "email": "support@gomarble.ai",
     "url": "https://github.com/gomarble-ai"
   },
-  "icon": "icon.png",
+  "icon": "favicon.png",
   "server": {
     "type": "python",
     "entry_point": "server.py",
