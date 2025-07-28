@@ -1,8 +1,8 @@
-# Facebook Ads MCP Server
+# Facebook/Meta Ads MCP Server
 
 [![smithery badge](https://smithery.ai/badge/@gomarble-ai/facebook-ads-mcp-server)](https://smithery.ai/server/@gomarble-ai/facebook-ads-mcp-server)
 
-This project provides an MCP server acting as an interface to the Facebook Ads, enabling programmatic access to Facebook Ads data and management features.
+This project provides an MCP server acting as an interface to the Meta Ads, enabling programmatic access to Meta Ads data and management features.
 
 <video controls width="1920" height="512" src="https://github.com/user-attachments/assets/c4a76dcf-cf5d-4a1d-b976-08165e880fe4">Your browser does not support the video tag.</video>
 
@@ -24,12 +24,12 @@ For a simpler setup experience, we offer ready-to-use installers:
 
 - Installs and configures the MCP server locally
 - Automatically handles environment setup
-- Prompts for Facebook token authentication during the process which is optional
-- If facebook access token is not provided then connect to GoMarble's server to create the token on your behalf
+- Prompts for Meta token authentication during the process which is optional
+- If Meta access token is not provided then connect to GoMarble's server to create the token on your behalf
 
 ### Important Disclaimer
 
-This setup **does not require** you to manually obtain a Facebook Developer Access Token.
+This setup **does not require** you to manually obtain a Meta Developer Access Token.
 
 Instead, it connects securely to **GoMarble's server to create the token on your behalf**.
 GoMarble **does not store** your token — it is saved locally on your machine for use with the MCP server.
@@ -56,11 +56,11 @@ GoMarble **does not store** your token — it is saved locally on your machine f
     ```bash
     pip install -r requirements.txt
     ```
-3.  **Obtain Facebook Access Token:** Secure a Facebook User Access Token with the necessary permissions (e.g., `ads_read`). You can generate this through the Facebook Developer portal. Follow [this link](https://elfsight.com/blog/how-to-get-facebook-access-token/).
+3.  **Obtain Meta Access Token:** Secure a Meta User Access Token with the necessary permissions (e.g., `ads_read`). You can generate this through the Meta Developer portal. Follow [this link](https://elfsight.com/blog/how-to-get-facebook-access-token/).
 
 ### Usage with MCP Clients (e.g., Cursor, Claude Desktop)
 
-To integrate this server with an MCP-compatible client, add a configuration([Claude](https://modelcontextprotocol.io/quickstart/user#2-add-the-filesystem-mcp-server)) similar to the following. Replace `YOUR_FACEBOOK_ACCESS_TOKEN` with your actual token and adjust the path to `server.py` if necessary.
+To integrate this server with an MCP-compatible client, add a configuration([Claude](https://modelcontextprotocol.io/quickstart/user#2-add-the-filesystem-mcp-server)) similar to the following. Replace `YOUR_META_ACCESS_TOKEN` with your actual token and adjust the path to `server.py` if necessary.
 
 ```json
 {
@@ -70,14 +70,14 @@ To integrate this server with an MCP-compatible client, add a configuration([Cla
       "args": [
         "/path/to/your/fb-ads-mcp-server/server.py",
         "--fb-token",
-        "YOUR_FACEBOOK_ACCESS_TOKEN"
+        "YOUR_META_ACCESS_TOKEN"
       ]
       // If using a virtual environment, you might need to specify the python executable within the venv:
       // "command": "/path/to/your/fb-ads-mcp-server/venv/bin/python",
       // "args": [
       //   "/path/to/your/fb-ads-mcp-server/server.py",
       //   "--fb-token",
-      //   "YOUR_FACEBOOK_ACCESS_TOKEN"
+      //   "YOUR_META_ACCESS_TOKEN"
       // ]
     }
   }
@@ -92,12 +92,12 @@ Restart the MCP Client app after making the update in the configuration.
 Execute `server.py`, providing the access token via the `--fb-token` argument.
 
 ```bash
-python server.py --fb-token YOUR_FACEBOOK_ACCESS_TOKEN
+python server.py --fb-token YOUR_META_ACCESS_TOKEN
 ```
 
 ### Available MCP Tools
 
-This MCP server provides tools for interacting with Facebook Ads objects and data:
+This MCP server provides tools for interacting with META Ads objects and data:
 
 | Tool Name                       | Description                                              |
 | ------------------------------- | -------------------------------------------------------- |
@@ -129,7 +129,7 @@ This MCP server provides tools for interacting with Facebook Ads objects and dat
 
 *(Note: Most tools support additional parameters like `fields`, `filtering`, `limit`, pagination, date ranges, etc. Refer to the detailed docstrings within `server.py` for the full list and description of arguments for each tool.)*
 
-*(Note: If your Facebook access token expires, you'll need to generate a new one and update the configuration file of the MCP Client with new token to continue using the tools.)*
+*(Note: If your Meta access token expires, you'll need to generate a new one and update the configuration file of the MCP Client with new token to continue using the tools.)*
 
 ### Dependencies
 
