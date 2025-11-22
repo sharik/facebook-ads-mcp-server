@@ -2619,6 +2619,261 @@ def get_broadtargetingcategories(
     return _make_graph_api_call(url, params)
 
 
+@mcp.tool()
+def get_reachestimate(
+    act_id: str,
+    targeting_spec: Dict[str, Any],
+    optimize_for: Optional[str] = None
+) -> Dict:
+    """Get potential reach and bid estimates for a given targeting configuration.
+
+    This tool queries the Facebook Marketing API reachestimate endpoint to validate audience
+    size and provide bid estimates before creating an ad set. It helps advertisers understand
+    the potential reach of their targeting strategy and optimize their campaign parameters.
+
+    Args:
+        act_id (str): The ad account ID, prefixed with 'act_', e.g., 'act_1234567890'.
+
+        targeting_spec (Dict[str, Any]): A dictionary defining the audience targeting criteria.
+            The targeting spec must include at minimum geo_locations with countries.
+
+            **--- LOCATION TARGETING ---**
+            - `geo_locations` (Dict): Geographic inclusions (REQUIRED).
+                - `countries` (List[str]): ISO country codes, e.g., ["US", "GB", "CA"]
+                - `regions` (List[Dict]): States/Provinces, e.g., [{"key": "3847"}] for California
+                - `cities` (List[Dict]): Cities with radius targeting, e.g.,
+                  [{"key": "2420379", "radius": 10, "distance_unit": "mile"}] for San Francisco
+                - `zips` (List[Dict]): ZIP codes, e.g., [{"key": "US:90210"}]
+                - `custom_locations` (List[Dict]): Custom geo points, e.g.,
+                  [{"latitude": 37.7749, "longitude": -122.4194, "radius": 10, "distance_unit": "mile"}]
+                - `geo_markets` (List[Dict]): DMA codes, e.g., [{"key": "DMA:501"}]
+                - `electoral_districts` (List[Dict]): US districts, e.g., [{"key": "..."}]
+                - `location_types` (List[str]): ["home", "recent"] (Default: both)
+            - `excluded_geo_locations` (Dict): Geographic exclusions (same structure as geo_locations)
+
+            **--- CORE DEMOGRAPHICS ---**
+            - `age_min` (int): Minimum age (13-65). Default: 18
+            - `age_max` (int): Maximum age (13-65). 65 means "65+"
+            - `genders` (List[int]): [1] for Male, [2] for Female. Omit for all genders
+            - `locales` (List[int]): Language locale keys, e.g., [6] for en_US
+              (Use targeting_search with type='adlocale' to find locale IDs)
+
+            **--- ADVANCED DEMOGRAPHICS ---**
+            - `relationship_statuses` (List[int]): e.g., [1] Single, [2] In relationship, [3] Married
+            - `education_statuses` (List[int]): e.g., [1] High School, [3] Undergrad, [4] Grad
+            - `college_years` (List[int]): Graduation years, e.g., [2024, 2025]
+            - `education_schools` (List[Dict]): [{"id": "...", "name": "..."}]
+              (Use targeting_search with type='adeducationschool' to find school IDs)
+            - `education_majors` (List[Dict]): [{"id": "...", "name": "..."}]
+              (Use targeting_search with type='adeducationmajor' to find major IDs)
+            - `work_employers` (List[Dict]): [{"id": "...", "name": "..."}]
+              (Use targeting_search with type='adworkemployer' to find employer IDs)
+            - `work_positions` (List[Dict]): [{"id": "...", "name": "..."}]
+              (Use targeting_search with type='adworkposition' to find job title IDs)
+            - `family_statuses` (List[Dict]): [{"id": "...", "name": "..."}]
+            - `life_events` (List[Dict]): [{"id": "6002714398172", "name": "Newlywed (1 year)"}]
+              (Use targeting_search with type='adTargetingCategory' and class_='life_events')
+            - `industries` (List[Dict]): [{"id": "...", "name": "..."}]
+              (Use targeting_search with type='adTargetingCategory' and class_='industries')
+
+            **--- DEVICE & PLATFORM ---**
+            - `publisher_platforms` (List[str]): ["facebook", "instagram", "audience_network", "messenger"]
+            - `facebook_positions` (List[str]): ["feed", "right_hand_column", "marketplace",
+              "video_feeds", "story", "search", "instream_video"]
+            - `instagram_positions` (List[str]): ["stream", "story", "explore", "reels"]
+            - `device_platforms` (List[str]): ["mobile", "desktop"]
+            - `user_os` (List[str]): ["iOS", "Android", "Windows"]
+            - `user_device` (List[str]): Specific device names (e.g., "Samsung Galaxy S9")
+            - `wireless_carrier` (List[str]): ["Wifi"] or specific carrier names
+
+            **--- DETAILED TARGETING (Interests, Behaviors, Clusters) ---**
+            - `interests` (List[Dict]): Interest objects, e.g., [{"id": "6003139266461", "name": "Photography"}]
+              (Use targeting_search with type='adinterest' to find interest IDs)
+            - `behaviors` (List[Dict]): Behavior objects, e.g., [{"id": "6002714895372", "name": "All travelers"}]
+              (Use targeting_search with type='adTargetingCategory' and class_='behaviors')
+            - `user_adclusters` (List[Dict]): Audience clusters, e.g.,
+              [{"id": "6002714898572", "name": "Small Business Owners"}]
+              (Use get_broadtargetingcategories to find cluster IDs)
+            - `demographics` (List[Dict]): Demographic objects
+              (Use targeting_search with type='adTargetingCategory' and class_='demographics')
+
+            **--- FLEXIBLE TARGETING (AND Logic) ---**
+            - `flexible_spec` (List[Dict]): Array of targeting groups to create "AND" logic.
+              Users must match ONE option from EACH group. Example:
+              [{"interests": [{"id": "A"}]}, {"interests": [{"id": "B"}]}] means match A AND B.
+              Each group can contain: interests, behaviors, user_adclusters, demographics,
+              life_events, industries, family_statuses, etc.
+
+            **--- EXCLUSIONS (NOT Logic) ---**
+            - `exclusions` (Dict): Exclude people matching these criteria. Can contain:
+              interests, behaviors, user_adclusters, demographics, life_events, etc.
+            - `excluded_custom_audiences` (List[Dict]): [{"id": "..."}] Exclude custom audiences
+
+            **--- CUSTOM AUDIENCES ---**
+            - `custom_audiences` (List[Dict]): [{"id": "..."}] Include custom audiences
+            - `excluded_custom_audiences` (List[Dict]): [{"id": "..."}] Exclude custom audiences
+
+            **--- OTHER ---**
+            - `targeting_automation` (Dict): Advantage+ audience expansion settings
+
+        optimize_for (Optional[str]): The optimization goal for bid estimation. Required to
+            generate accurate bid estimates. Common options:
+            - 'NONE': No specific optimization (default)
+            - 'APP_INSTALLS': Optimize for app installations
+            - 'BRAND_AWARENESS': Optimize for brand awareness
+            - 'AD_RECALL_LIFT': Optimize for ad recall
+            - 'CLICKS': Optimize for clicks
+            - 'ENGAGEMENT': Optimize for engagement
+            - 'EVENT_RESPONSES': Optimize for event responses
+            - 'IMPRESSIONS': Optimize for impressions
+            - 'LEAD_GENERATION': Optimize for lead generation
+            - 'LINK_CLICKS': Optimize for link clicks
+            - 'OFFER_CLAIMS': Optimize for offer claims
+            - 'OFFSITE_CONVERSIONS': Optimize for conversions
+            - 'PAGE_ENGAGEMENT': Optimize for page engagement
+            - 'PAGE_LIKES': Optimize for page likes
+            - 'POST_ENGAGEMENT': Optimize for post engagement
+            - 'REACH': Optimize for unique reach
+            - 'THRUPLAY': Optimize for ThruPlay video views
+            - 'VALUE': Optimize for conversion value
+            - 'VISIT_INSTAGRAM_PROFILE': Optimize for Instagram profile visits
+
+    Returns:
+        Dict: A dictionary containing reach estimate data with the following structure:
+            - 'data': List containing a single estimate object with:
+                - 'users' (int): Estimated number of people reached
+                - 'users_lower_bound' (int): Minimum range of potential reach (monthly active users)
+                - 'users_upper_bound' (int): Maximum range of potential reach (monthly active users)
+                - 'estimate_ready' (bool): If False, the estimate calculation is still pending.
+                  Some audiences require time to populate before Facebook can provide estimates.
+                - 'estimate_dau' (int): Estimated daily active users (if available)
+                - 'estimate_mau' (int): Estimated monthly active users (if available)
+                - 'bid_estimations' (List[Dict]): Suggested bid amounts (if optimize_for is specified):
+                    - 'bid_amount_min' (int): Minimum suggested bid in cents
+                    - 'bid_amount_median' (int): Median suggested bid in cents
+                    - 'bid_amount_max' (int): Maximum suggested bid in cents
+            - 'paging': Pagination information (typically empty for reach estimates)
+
+    Examples:
+        ```python
+        # Example 1: Simple reach estimate with user_adclusters (broad targeting categories)
+        # First, get available broad targeting categories
+        categories = get_broadtargetingcategories(act_id="act_123456789")
+
+        estimate = get_reachestimate(
+            act_id="act_123456789",
+            targeting_spec={
+                "geo_locations": {"countries": ["US"]},
+                "age_min": 20,
+                "user_adclusters": [
+                    {"id": 6002714898572, "name": "Small Business Owners"}
+                ]
+            },
+            optimize_for="REACH",
+            currency="USD"
+        )
+
+        # Example 2: Multi-country targeting with interests and behaviors
+        # First, search for interests and behaviors
+        soccer_interest = targeting_search(q="soccer", type="adinterest", limit=1)
+        travelers_behavior = targeting_search(
+            q="travelers",
+            type="adTargetingCategory",
+            class_="behaviors"
+        )
+
+        estimate = get_reachestimate(
+            act_id="act_123456789",
+            targeting_spec={
+                "geo_locations": {
+                    "countries": ["JP"],
+                    "regions": [{"key": "4081"}],  # Texas
+                    "cities": [
+                        {"key": "777934", "radius": 10, "distance_unit": "mile"}  # Menlo Park, CA
+                    ]
+                },
+                "age_min": 20,
+                "age_max": 24,
+                "genders": [1],  # Male only
+                "publisher_platforms": ["facebook", "audience_network"],
+                "facebook_positions": ["feed"],
+                "device_platforms": ["mobile"],
+                "interests": [
+                    {"id": "6003107902433", "name": "Association football (Soccer)"}
+                ],
+                "behaviors": [
+                    {"id": "6002714895372", "name": "All frequent travelers"}
+                ],
+                "life_events": [
+                    {"id": "6002714398172", "name": "Newlywed (1 year)"}
+                ]
+            },
+            optimize_for="IMPRESSIONS"
+        )
+
+        # Example 3: Using flexible_spec for AND logic targeting
+        # Target people interested in BOTH cooking AND small business
+        estimate = get_reachestimate(
+            act_id="act_123456789",
+            targeting_spec={
+                "geo_locations": {"countries": ["US"]},
+                "flexible_spec": [
+                    {"user_adclusters": [{"id": 6002714885172, "name": "Cooking"}]},
+                    {"user_adclusters": [{"id": 6002714898572, "name": "Small Business Owners"}]}
+                ]
+            },
+            optimize_for="LINK_CLICKS"
+        )
+
+        # Example 4: Check if estimate is ready and get audience size with bid estimates
+        result = get_reachestimate(
+            act_id="act_123456789",
+            targeting_spec={
+                "geo_locations": {"countries": ["US", "GB"]},
+                "age_min": 18,
+                "age_max": 65,
+                "publisher_platforms": ["instagram"],
+                "user_os": ["iOS"]
+            },
+            optimize_for="REACH"
+        )
+
+        if result['data'][0]['estimate_ready']:
+            lower = result['data'][0]['users_lower_bound']
+            upper = result['data'][0]['users_upper_bound']
+            print(f"Estimated audience: {lower:,} - {upper:,} users")
+
+            if 'bid_estimations' in result['data'][0]:
+                bids = result['data'][0]['bid_estimations'][0]
+                print(f"Suggested bid range: ${bids['bid_amount_min']/100:.2f} - "
+                      f"${bids['bid_amount_max']/100:.2f}")
+        ```
+
+    Notes:
+        - The 'geo_locations' field with at least 'countries' is REQUIRED in targeting_spec
+        - Use targeting_search() to find valid IDs for interests, behaviors, locations, demographics, etc.
+        - Use get_broadtargetingcategories() to find user_adclusters (broad targeting categories)
+        - Very specific targeting may result in no estimate or require time to populate
+        - Special ad categories (housing, employment, credit) have significant targeting restrictions
+        - Bid estimations are only returned when optimize_for is specified
+    """
+    access_token = _get_fb_access_token()
+    url = f"{FB_GRAPH_URL}/{act_id}/reachestimate"
+
+    params = {
+        'access_token': access_token
+    }
+
+    # targeting_spec is required and must be JSON encoded
+    params['targeting_spec'] = json.dumps(targeting_spec)
+
+    # Add optional parameters
+    if optimize_for is not None:
+        params['optimize_for'] = optimize_for
+
+    return _make_graph_api_call(url, params)
+
+
 if __name__ == "__main__":
     _get_fb_access_token()
     mcp.run(transport='stdio')
