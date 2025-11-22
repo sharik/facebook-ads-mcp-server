@@ -2291,6 +2291,247 @@ def get_activities_by_adset(
     return _make_graph_api_call(url, params)
 
 
+@mcp.tool()
+def targeting_search(
+    q: str,
+    type: str,
+    class_: Optional[str] = None,
+    limit: Optional[int] = None,
+    locale: Optional[str] = None,
+    location_types: Optional[List[str]] = None,
+    country_code: Optional[str] = None,
+    latitude: Optional[float] = None,
+    longitude: Optional[float] = None,
+    distance_unit: Optional[str] = None,
+    interest_list: Optional[List[str]] = None,
+    targeting_option_list: Optional[List[str]] = None,
+    region_id: Optional[int] = None
+) -> Dict:
+    """Search for Facebook ad targeting options including interests, behaviors, locations, and demographics.
+
+    This function allows you to discover available targeting criteria for Facebook ad campaigns.
+    It's essential for programmatically building targeting specifications without manually browsing
+    the Ads Manager interface.
+
+    Args:
+        q (str): The search query string. What you're searching for.
+            Examples: "coffee", "New York", "software engineer", "travel"
+
+        type (str): The type of targeting option to search for. Available types:
+            - 'adinterest': Interest-based targeting (e.g., hobbies, pages liked)
+            - 'adinterestsuggestion': Suggestions based on interest targeting
+            - 'adinterestvalid': Validates string as valid interest targeting option
+            - 'adgeolocation': Geographic locations (combined for country, city, state & zip)
+            - 'adgeolocationmeta': Additional metadata for geolocations
+            - 'adradiussuggestion': Returns recommended radius around location
+            - 'adTargetingCategory': Broad targeting categories (requires class_ parameter, q ignored)
+            - 'adworkemployer': Employers/companies for workplace targeting
+            - 'adeducationschool': Educational institutions (college targeting)
+            - 'adeducationmajor': College major targeting
+            - 'adworkposition': Job titles for professional targeting
+            - 'adlocale': Languages/locales targeting
+
+        class_ (Optional[str]): Additional classification for 'adTargetingCategory' type.
+            Required when type='adTargetingCategory'. Options include:
+            - 'interests': Interest-based targeting options
+            - 'behaviors': User behavior patterns
+            - 'demographics': Demographic criteria (specifying this retrieves all demographics)
+            - 'family_statuses': Family status options
+            - 'industries': Industry classifications
+            - 'life_events': Life event milestones
+            - 'income': Income brackets (restricted)
+            - 'user_device': User device targeting
+            - 'user_os': User operating system targeting
+
+        limit (Optional[int]): Maximum number of results to return.
+            Default: 25. Maximum varies by type (typically 100-1000).
+
+        locale (Optional[str]): Language/locale for results.
+            Format: language_COUNTRY (e.g., "en_US", "es_ES", "fr_FR")
+            Affects display names of targeting options.
+
+        location_types (Optional[List[str]]): For geographic targeting, filter by location types.
+            Options: ['country', 'region', 'city', 'zip', 'geo_market', 'electoral_district']
+            Example: ['city'] to search only for cities
+
+        country_code (Optional[str]): ISO country code for geo-specific searches.
+            Example: "US", "GB", "CA"
+
+        latitude (Optional[float]): Latitude coordinate for radius-based searches.
+            Required for type='adradiussuggestion'. Range: -90 to 90.
+            Example: 37.7749 (San Francisco)
+
+        longitude (Optional[float]): Longitude coordinate for radius-based searches.
+            Required for type='adradiussuggestion'. Range: -180 to 180.
+            Example: -122.4194 (San Francisco)
+
+        distance_unit (Optional[str]): Unit of measurement for radius suggestions.
+            Used with type='adradiussuggestion'. Options: 'mile', 'kilometer'.
+            Default: 'kilometer'
+
+        interest_list (Optional[List[str]]): List of interest names for validation or suggestions.
+            Required for type='adinterestsuggestion' or type='adinterestvalid' (replaces q parameter).
+            Example: ["technology", "photography", "travel"]
+
+        targeting_option_list (Optional[List[str]]): List of targeting option IDs to check status.
+            Used with type='targetingoptionstatus'.
+            Example: ["6003139266461", "6004854404172"]
+
+        region_id (Optional[int]): Numeric region ID to search within a specific region.
+            Used with type='adgeolocation' to narrow geographic searches.
+            Example: region_id=3847 searches only within California (US region).
+
+    Returns:
+        Dict: A dictionary containing search results. The structure of the 'data' list varies by type:
+
+        **Geographic searches** ('adgeolocation', 'adgeolocationmeta'):
+            - 'key' (str): Unique identifier for targeting specs (e.g., "US", "2447439")
+            - 'name' (str): Display name (e.g., "United States", "New York")
+            - 'type' (str): Location type (e.g., "country", "city", "region", "zip")
+            - 'country_code' (str): ISO country code (e.g., "US", "GB")
+            - 'country_name' (str): Full country name
+            - 'region' (str): Region name (for cities)
+            - 'region_id' (int): Numeric region ID (for cities)
+            - 'supports_region' (bool): Whether location supports region targeting
+            - 'supports_city' (bool): Whether location supports city targeting
+
+        **Interest/Behavior/Demographic searches** ('adinterest', 'adTargetingCategory', 'adworkemployer',
+        'adeducationschool', 'adeducationmajor', 'adworkposition'):
+            - 'id' (str): Numeric ID for targeting specs
+            - 'name' (str): Display name of the targeting option
+            - 'audience_size_lower_bound' (int): Estimated minimum audience size
+            - 'audience_size_upper_bound' (int): Estimated maximum audience size
+            - 'path' (list): Category hierarchy/breadcrumb (e.g., ["Interests", "Business and industry"])
+            - 'description' (str): Description of the targeting option
+            - 'type' (str): Category type (e.g., "interests", "behaviors", "demographics")
+            - 'topic' (str): High-level topic category
+
+        **Interest suggestions** ('adinterestsuggestion'):
+            - 'id' (str): Interest ID
+            - 'name' (str): Interest name
+            - 'audience_size_lower_bound' (int): Min audience size
+            - 'audience_size_upper_bound' (int): Max audience size
+            - 'path' (list): Category path
+            - 'disambiguation_category' (str): Category for disambiguation
+
+        **Interest validation** ('adinterestvalid'):
+            - 'id' (str): Validated interest ID
+            - 'name' (str): Validated interest name
+            - 'valid' (bool): Whether the interest is valid for targeting
+
+        **Radius suggestions** ('adradiussuggestion'):
+            - 'suggested_radius' (float): Recommended radius value
+            - 'distance_unit' (str): Unit of measurement ("mile" or "kilometer")
+
+        **Targeting status** ('targetingoptionstatus'):
+            - 'id' (str): Targeting option ID
+            - 'name' (str): Option name
+            - 'current_status' (str): Current status (e.g., "NORMAL", "NON_DELIVERABLE")
+            - 'future_plan' (dict): Planned status changes with dates
+
+        **Locale searches** ('adlocale'):
+            - 'key' (int): Locale ID for targeting
+            - 'name' (str): Language name (e.g., "English (US)", "Spanish")
+
+        All responses include:
+            - 'paging' (dict): Pagination information with 'cursors' (before/after) and 'next'/'previous' URLs
+
+    Examples:
+        ```python
+        # Search for interest "photography"
+        results = targeting_search(
+            q="photography",
+            type="adinterest",
+            limit=10
+        )
+
+        # Search for city "San Francisco"
+        cities = targeting_search(
+            q="San Francisco",
+            type="adgeolocation",
+            location_types=["city"]
+        )
+
+        # Search for behaviors related to "travel"
+        behaviors = targeting_search(
+            q="frequent travelers",
+            type="adTargetingCategory",
+            class_="behaviors"
+        )
+
+        # Search for employers matching "Google"
+        employers = targeting_search(
+            q="Google",
+            type="adworkemployer",
+            limit=25
+        )
+
+        # Search for job titles in Spanish
+        job_titles = targeting_search(
+            q="ingeniero",
+            type="adworkposition",
+            locale="es_ES"
+        )
+        ```
+
+    Notes:
+        - When using type='adTargetingCategory', the 'q' parameter is ignored
+        - Setting class_='demographics' retrieves ALL demographic targeting options
+        - Demographic targeting options are not available in all countries; results may vary based on
+          the home country setting of the user whose access token is being used
+        - Audience size estimates are rough; actual reach may vary
+        - Political and sensitive categories have additional restrictions
+        - Special ad categories (housing, employment, credit) have targeting limitations
+    """
+    access_token = _get_fb_access_token()
+    url = f"{FB_GRAPH_URL}/search"
+
+    params = {
+        'access_token': access_token,
+        'q': q,
+        'type': type
+    }
+
+    # Add optional parameters
+    if class_ is not None:
+        params['class'] = class_
+
+    if limit is not None:
+        params['limit'] = limit
+
+    if locale is not None:
+        params['locale'] = locale
+
+    if location_types is not None:
+        # location_types needs to be JSON encoded as an array
+        params['location_types'] = json.dumps(location_types)
+
+    if country_code is not None:
+        params['country_code'] = country_code
+
+    if latitude is not None:
+        params['latitude'] = latitude
+
+    if longitude is not None:
+        params['longitude'] = longitude
+
+    if distance_unit is not None:
+        params['distance_unit'] = distance_unit
+
+    if interest_list is not None:
+        # interest_list needs to be JSON encoded as an array
+        params['interest_list'] = json.dumps(interest_list)
+
+    if targeting_option_list is not None:
+        # targeting_option_list needs to be JSON encoded as an array
+        params['targeting_option_list'] = json.dumps(targeting_option_list)
+
+    if region_id is not None:
+        params['region_id'] = region_id
+
+    return _make_graph_api_call(url, params)
+
+
 if __name__ == "__main__":
     _get_fb_access_token()
     mcp.run(transport='stdio')
