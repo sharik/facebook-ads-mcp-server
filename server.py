@@ -2296,7 +2296,7 @@ def targeting_search(
     q: str,
     type: str,
     class_: Optional[str] = None,
-    limit: Optional[int] = None,
+    limit: int = 25,
     locale: Optional[str] = None,
     location_types: Optional[List[str]] = None,
     country_code: Optional[str] = None,
@@ -2342,9 +2342,6 @@ def targeting_search(
             - 'income': Income brackets (restricted)
             - 'user_device': User device targeting
             - 'user_os': User operating system targeting
-
-        limit (Optional[int]): Maximum number of results to return.
-            Default: 25. Maximum varies by type (typically 100-1000).
 
         locale (Optional[str]): Language/locale for results.
             Format: language_COUNTRY (e.g., "en_US", "es_ES", "fr_FR")
@@ -2497,7 +2494,7 @@ def targeting_search(
         params['class'] = class_
 
     if limit is not None:
-        params['limit'] = limit
+        params['limit'] = str(limit)
 
     if locale is not None:
         params['locale'] = locale
@@ -2510,10 +2507,10 @@ def targeting_search(
         params['country_code'] = country_code
 
     if latitude is not None:
-        params['latitude'] = latitude
+        params['latitude'] = str(latitude)
 
     if longitude is not None:
-        params['longitude'] = longitude
+        params['longitude'] = str(longitude)
 
     if distance_unit is not None:
         params['distance_unit'] = distance_unit
@@ -2527,7 +2524,97 @@ def targeting_search(
         params['targeting_option_list'] = json.dumps(targeting_option_list)
 
     if region_id is not None:
-        params['region_id'] = region_id
+        params['region_id'] = str(region_id)
+
+    return _make_graph_api_call(url, params)
+
+
+@mcp.tool()
+def get_broadtargetingcategories(
+    act_id: str,
+    custom_categories_only: Optional[bool] = None,
+    limit: Optional[int] = 25,
+    after: Optional[str] = None,
+    before: Optional[str] = None
+) -> Dict:
+    """Retrieves broad targeting categories available for a Facebook ad account.
+
+    This function accesses the Facebook Graph API to retrieve broad targeting categories (BCT)
+    that can be used for ad targeting. Broad targeting categories provide a way to reach
+    audiences based on interests and behaviors without specifying detailed targeting criteria.
+
+    Args:
+        act_id (str): The ID of the ad account, prefixed with 'act_', e.g., 'act_1234567890'.
+        custom_categories_only (Optional[bool]): If True, returns only custom broad targeting
+            categories created for this ad account. If False or None, returns all available
+            broad targeting categories including platform-provided ones.
+        limit (Optional[int]): Maximum number of categories to return per page. Default is 25.
+        after (Optional[str]): Pagination cursor for the next page of results.
+            Obtained from the 'paging.cursors.after' field in the previous response.
+        before (Optional[str]): Pagination cursor for the previous page of results.
+            Obtained from the 'paging.cursors.before' field in the previous response.
+
+    Returns:
+        Dict: A dictionary containing the broad targeting categories. The response structure includes:
+            - 'data': A list of category objects, each containing:
+                - 'id' (int): ID of the broad category, used in ad targeting specs
+                - 'name' (str): Name of the broad category
+                - 'parent_category' (str): Parent category of the broad category
+                - 'size_lower_bound' (int): Lower bound of audience size for this category
+                - 'size_upper_bound' (int): Upper bound of audience size for this category
+                - 'type' (int): Type identifier (6 = BCT)
+                - 'type_name' (str): Type name (typically 'BCT')
+            - 'paging': Pagination information with cursors for navigating results
+
+    Example:
+        ```python
+        # Get all broad targeting categories for an ad account
+        categories = get_broadtargetingcategories(
+            act_id="act_123456789",
+            limit=50
+        )
+
+        # Get only custom broad targeting categories
+        custom_categories = get_broadtargetingcategories(
+            act_id="act_123456789",
+            custom_categories_only=True
+        )
+
+        # Paginate through results
+        first_page = get_broadtargetingcategories(
+            act_id="act_123456789",
+            limit=25
+        )
+
+        # Get the next page using the cursor from the previous response
+        next_page_cursor = first_page.get("paging", {}).get("cursors", {}).get("after")
+        if next_page_cursor:
+            next_page = get_broadtargetingcategories(
+                act_id="act_123456789",
+                limit=25,
+                after=next_page_cursor
+            )
+        ```
+    """
+    access_token = _get_fb_access_token()
+    url = f"{FB_GRAPH_URL}/{act_id}/broadtargetingcategories"
+
+    params = {
+        'access_token': access_token
+    }
+
+    # Add optional parameters
+    if custom_categories_only is True:
+        params['custom_categories_only'] = 'true'
+
+    if limit is not None:
+        params['limit'] = str(limit)
+
+    if after:
+        params['after'] = after
+
+    if before:
+        params['before'] = before
 
     return _make_graph_api_call(url, params)
 
