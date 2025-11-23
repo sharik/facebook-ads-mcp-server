@@ -61,6 +61,11 @@ def _make_graph_api_call(url: str, params: Dict[str, Any]) -> Dict:
     except requests.exceptions.RequestException as e:
         # Log the error and re-raise or handle more gracefully
         print(f"Error making Graph API call to {url} with params {params}: {e}")
+        # Try to print the response body if available
+        try:
+            print(f"Response body: {response.text}")
+        except:
+            pass
         # Depending on desired behavior, you might want to raise a custom exception
         # or return a specific error structure. Re-raising keeps the current behavior.
         raise
@@ -2435,39 +2440,150 @@ def targeting_search(
 
     Examples:
         ```python
-        # Search for interest "photography"
+        # Example 1: Search for interests
         results = targeting_search(
             q="photography",
             type="adinterest",
             limit=10
         )
+        # Returns: [{"id": "6003139266461", "name": "Photography",
+        #            "audience_size_lower_bound": 498000000, ...}]
 
-        # Search for city "San Francisco"
-        cities = targeting_search(
-            q="San Francisco",
-            type="adgeolocation",
-            location_types=["city"]
+        # Example 2: Search for job titles (IT professionals)
+        job_titles = targeting_search(
+            q="Software Engineer",
+            type="adworkposition",
+            limit=50
         )
+        # Returns: [{"id": "109542932398298", "name": "Software engineer", ...}]
 
-        # Search for behaviors related to "travel"
-        behaviors = targeting_search(
-            q="frequent travelers",
-            type="adTargetingCategory",
-            class_="behaviors"
-        )
-
-        # Search for employers matching "Google"
+        # Example 3: Search for tech company employers
         employers = targeting_search(
             q="Google",
             type="adworkemployer",
             limit=25
         )
+        # Returns: [{"id": "223829441107037", "name": "Google India Pvt Ltd", ...}]
 
-        # Search for job titles in Spanish
-        job_titles = targeting_search(
+        # Example 4: Search for education majors
+        education = targeting_search(
+            q="Computer Science",
+            type="adeducationmajor",
+            limit=20
+        )
+        # Returns: [{"id": "104076956295773", "name": "Computer science", ...}]
+
+        # Example 5: Get ALL behaviors (q is ignored)
+        all_behaviors = targeting_search(
+            q="",  # Query ignored for adTargetingCategory
+            type="adTargetingCategory",
+            class_="behaviors",
+            limit=30
+        )
+        # Returns all available behaviors
+
+        # Example 6: Get specific category - interests
+        interests_category = targeting_search(
+            q="",  # Query ignored
+            type="adTargetingCategory",
+            class_="interests",
+            limit=10
+        )
+
+        # Example 7: Get demographics (returns ALL demographics when class_='demographics')
+        demographics = targeting_search(
+            q="",  # Query ignored
+            type="adTargetingCategory",
+            class_="demographics",
+            limit=50
+        )
+
+        # Example 8: Search for geographic locations - cities
+        cities = targeting_search(
+            q="San Francisco",
+            type="adgeolocation",
+            location_types=["city"],
+            limit=10
+        )
+        # Returns: [{"key": "2420379", "name": "San Francisco", "type": "city", ...}]
+
+        # Example 9: Search for countries
+        countries = targeting_search(
+            q="United States",
+            type="adgeolocation",
+            location_types=["country"]
+        )
+        # Returns: [{"key": "US", "name": "United States", "type": "country", ...}]
+
+        # Example 10: Search with country code filter
+        uk_cities = targeting_search(
+            q="London",
+            type="adgeolocation",
+            country_code="GB",
+            location_types=["city"]
+        )
+
+        # Example 11: Search within a specific region
+        ca_cities = targeting_search(
+            q="Los",
+            type="adgeolocation",
+            region_id=3847,  # California
+            location_types=["city"]
+        )
+
+        # Example 12: Get radius suggestions for a location
+        radius = targeting_search(
+            q="",  # Query ignored
+            type="adradiussuggestion",
+            latitude=37.7749,   # San Francisco
+            longitude=-122.4194,
+            distance_unit="mile"
+        )
+
+        # Example 13: Get interest suggestions based on existing interests
+        suggestions = targeting_search(
+            q="",  # Query ignored when interest_list provided
+            type="adinterestsuggestion",
+            interest_list=["technology", "programming"],
+            limit=20
+        )
+
+        # Example 14: Validate interests
+        validation = targeting_search(
+            q="",  # Query ignored
+            type="adinterestvalid",
+            interest_list=["Coffee", "Technology"]
+        )
+
+        # Example 15: Search for job titles in Spanish
+        spanish_jobs = targeting_search(
             q="ingeniero",
             type="adworkposition",
-            locale="es_ES"
+            locale="es_ES",
+            limit=15
+        )
+
+        # Example 16: Search for languages/locales
+        languages = targeting_search(
+            q="Spanish",
+            type="adlocale",
+            limit=10
+        )
+
+        # Example 17: Get all class_ options for adTargetingCategory
+        # class_ options: interests, behaviors, demographics, family_statuses,
+        #                 industries, life_events, income, user_device, user_os
+
+        industries = targeting_search(
+            q="", type="adTargetingCategory", class_="industries", limit=50
+        )
+
+        life_events = targeting_search(
+            q="", type="adTargetingCategory", class_="life_events", limit=50
+        )
+
+        family_statuses = targeting_search(
+            q="", type="adTargetingCategory", class_="family_statuses", limit=25
         )
         ```
 
@@ -2622,8 +2738,7 @@ def get_broadtargetingcategories(
 @mcp.tool()
 def get_reachestimate(
     act_id: str,
-    targeting_spec: Dict[str, Any],
-    optimize_for: Optional[str] = None
+    targeting_spec: Dict[str, Any]
 ) -> Dict:
     """Get potential reach and bid estimates for a given targeting configuration.
 
@@ -2716,28 +2831,6 @@ def get_reachestimate(
             **--- OTHER ---**
             - `targeting_automation` (Dict): Advantage+ audience expansion settings
 
-        optimize_for (Optional[str]): The optimization goal for bid estimation. Required to
-            generate accurate bid estimates. Common options:
-            - 'NONE': No specific optimization (default)
-            - 'APP_INSTALLS': Optimize for app installations
-            - 'BRAND_AWARENESS': Optimize for brand awareness
-            - 'AD_RECALL_LIFT': Optimize for ad recall
-            - 'CLICKS': Optimize for clicks
-            - 'ENGAGEMENT': Optimize for engagement
-            - 'EVENT_RESPONSES': Optimize for event responses
-            - 'IMPRESSIONS': Optimize for impressions
-            - 'LEAD_GENERATION': Optimize for lead generation
-            - 'LINK_CLICKS': Optimize for link clicks
-            - 'OFFER_CLAIMS': Optimize for offer claims
-            - 'OFFSITE_CONVERSIONS': Optimize for conversions
-            - 'PAGE_ENGAGEMENT': Optimize for page engagement
-            - 'PAGE_LIKES': Optimize for page likes
-            - 'POST_ENGAGEMENT': Optimize for post engagement
-            - 'REACH': Optimize for unique reach
-            - 'THRUPLAY': Optimize for ThruPlay video views
-            - 'VALUE': Optimize for conversion value
-            - 'VISIT_INSTAGRAM_PROFILE': Optimize for Instagram profile visits
-
     Returns:
         Dict: A dictionary containing reach estimate data with the following structure:
             - 'data': List containing a single estimate object with:
@@ -2756,101 +2849,194 @@ def get_reachestimate(
 
     Examples:
         ```python
-        # Example 1: Simple reach estimate with user_adclusters (broad targeting categories)
-        # First, get available broad targeting categories
-        categories = get_broadtargetingcategories(act_id="act_123456789")
+        # Example 1: IT Professionals Targeting (High Precision)
+        # Target verified IT professionals with specific job titles
+        # First, search for IT job titles
+        job_titles_result = targeting_search(
+            q="Software Engineer",
+            type="adworkposition",
+            limit=10
+        )
 
         estimate = get_reachestimate(
             act_id="act_123456789",
             targeting_spec={
                 "geo_locations": {"countries": ["US"]},
-                "age_min": 20,
-                "user_adclusters": [
-                    {"id": 6002714898572, "name": "Small Business Owners"}
+                "age_min": 21,
+                "age_max": 55,
+                "work_positions": [
+                    {"id": "109542932398298", "name": "Software engineer"},
+                    {"id": "110265725662722", "name": "Senior Software Engineer"},
+                    {"id": "111971125481473", "name": "Programmer"},
+                    {"id": "106275566077710", "name": "Chief technology officer"}
                 ]
-            },
-            optimize_for="REACH",
-            currency="USD"
+            }
+        )
+        # Result: High precision, medium reach, higher cost
+        # Best for: B2B SaaS, developer tools, IT services
+
+        # Example 2: Tech Enthusiasts Targeting (Broad Reach)
+        # Target people interested in technology topics + programming languages
+        # First, search for tech interests and behaviors
+        tech_interests = targeting_search(q="programming", type="adinterest", limit=20)
+        behaviors = targeting_search(q="", type="adTargetingCategory", class_="behaviors", limit=30)
+
+        estimate = get_reachestimate(
+            act_id="act_123456789",
+            targeting_spec={
+                "geo_locations": {"countries": ["US"]},
+                "age_min": 18,
+                "age_max": 45,
+                "interests": [
+                    {"id": "6003682002118", "name": "Python (programming language)"},
+                    {"id": "6003437022731", "name": "Java (programming language)"},
+                    {"id": "6002898176962", "name": "Artificial intelligence"},
+                    {"id": "6003177222849", "name": "Machine learning"},
+                    {"id": "6005882720291", "name": "Data science"}
+                ],
+                "behaviors": [
+                    {"id": "6015235495383", "name": "Technology early adopters"}
+                ]
+            }
+        )
+        # Result: Medium precision, highest reach, lower cost
+        # Best for: Online courses, bootcamps, tech events, consumer products
+
+        # Example 3: Elite IT Professionals using flexible_spec (AND Logic)
+        # Target CS graduates AND (senior positions OR top tech companies)
+        # First, search for education and employers
+        education = targeting_search(q="Computer Science", type="adeducationmajor", limit=10)
+        employers = targeting_search(q="Google", type="adworkemployer", limit=10)
+
+        estimate = get_reachestimate(
+            act_id="act_123456789",
+            targeting_spec={
+                "geo_locations": {"countries": ["US"]},
+                "age_min": 25,
+                "age_max": 55,
+                # flexible_spec creates AND logic: Must match BOTH groups
+                "flexible_spec": [
+                    # Group 1: Must have CS/IT education
+                    {
+                        "education_majors": [
+                            {"id": "104076956295773", "name": "Computer science"},
+                            {"id": "105946722770150", "name": "Information technology"},
+                            {"id": "431299473579193", "name": "Data science"}
+                        ]
+                    },
+                    # Group 2: Must ALSO work at top tech company OR have senior title
+                    {
+                        "work_employers": [
+                            {"id": "223829441107037", "name": "Google India Pvt Ltd"},
+                            {"id": "112578295420107", "name": "Microsoft Certified Professional"},
+                            {"id": "440813856053776", "name": "Amazon Fulfillment Center"}
+                        ],
+                        "work_positions": [
+                            {"id": "110265725662722", "name": "Senior Software Engineer"},
+                            {"id": "106275566077710", "name": "Chief technology officer"}
+                        ]
+                    }
+                ],
+                # Exclude recent graduates
+                "exclusions": {
+                    "college_years": [2024, 2025, 2026, 2027, 2028]
+                }
+            }
+        )
+        # Result: Highest precision, lower reach, very high cost
+        # Best for: Executive recruitment, premium enterprise software, partnerships
+
+        # Example 4: Advanced Targeting with Exclusions (Avoid Overlap)
+        # Target tech enthusiasts but EXCLUDE verified IT professionals
+        estimate = get_reachestimate(
+            act_id="act_123456789",
+            targeting_spec={
+                "geo_locations": {"countries": ["US"]},
+                "age_min": 18,
+                "age_max": 45,
+                "interests": [
+                    {"id": "6003969213096", "name": "Computer programming"},
+                    {"id": "6003380970205", "name": "Software engineering"},
+                    {"id": "6003682002118", "name": "Python (programming language)"}
+                ],
+                # Exclude to avoid overlap with other campaigns
+                "exclusions": {
+                    "work_positions": [
+                        {"id": "109542932398298", "name": "Software engineer"},
+                        {"id": "111971125481473", "name": "Programmer"}
+                    ],
+                    "work_employers": [
+                        {"id": "223829441107037", "name": "Google India Pvt Ltd"},
+                        {"id": "112578295420107", "name": "Microsoft Certified Professional"}
+                    ]
+                }
+            }
+        )
+        # Result: Excludes verified professionals, targets learners/career changers
+
+        # Example 5: Validating Estimate Results
+        result = get_reachestimate(
+            act_id="act_123456789",
+            targeting_spec={
+                "geo_locations": {"countries": ["US", "CA"]},
+                "age_min": 25,
+                "age_max": 45,
+                "work_positions": [
+                    {"id": "109542932398298", "name": "Software engineer"}
+                ]
+            }
         )
 
-        # Example 2: Multi-country targeting with interests and behaviors
-        # First, search for interests and behaviors
-        soccer_interest = targeting_search(q="soccer", type="adinterest", limit=1)
-        travelers_behavior = targeting_search(
-            q="travelers",
-            type="adTargetingCategory",
-            class_="behaviors"
-        )
+        # Extract and validate metrics
+        if 'data' in result and len(result['data']) > 0:
+            data = result['data'][0]
 
+            # Check if estimate is ready
+            if data.get('estimate_ready', False):
+                users = data.get('users', 0)
+                print(f"Estimated reach: {users:,} users")
+
+                # Get reach bounds
+                if 'users_lower_bound' in data and 'users_upper_bound' in data:
+                    lower = data['users_lower_bound']
+                    upper = data['users_upper_bound']
+                    print(f"Reach range: {lower:,} - {upper:,} users")
+
+                # Validate minimum audience size (50k minimum recommended)
+                if users < 50000:
+                    print("Warning: Audience too small, consider broadening targeting")
+                elif users > 5000000:
+                    print("Warning: Audience very large, consider narrowing for better ROI")
+                else:
+                    print("Audience size is optimal for campaign")
+            else:
+                print("Estimate not ready yet, check again later")
+
+        # Example 6: Geographic + Demographic Targeting
+        # NOTE: Cannot combine countries, regions, and cities - they overlap!
+        # Use ONLY cities with radius, OR regions, OR countries
         estimate = get_reachestimate(
             act_id="act_123456789",
             targeting_spec={
                 "geo_locations": {
-                    "countries": ["JP"],
-                    "regions": [{"key": "4081"}],  # Texas
                     "cities": [
-                        {"key": "777934", "radius": 10, "distance_unit": "mile"}  # Menlo Park, CA
+                        {"key": "2420379", "radius": 25, "distance_unit": "mile"}  # San Francisco, CA
                     ]
                 },
-                "age_min": 20,
-                "age_max": 24,
-                "genders": [1],  # Male only
-                "publisher_platforms": ["facebook", "audience_network"],
-                "facebook_positions": ["feed"],
-                "device_platforms": ["mobile"],
+                "age_min": 25,
+                "age_max": 40,
+                "genders": [1, 2],  # All genders
                 "interests": [
-                    {"id": "6003107902433", "name": "Association football (Soccer)"}
+                    {"id": "6003380970205", "name": "Software engineering"}
                 ],
-                "behaviors": [
-                    {"id": "6002714895372", "name": "All frequent travelers"}
-                ],
-                "life_events": [
-                    {"id": "6002714398172", "name": "Newlywed (1 year)"}
-                ]
-            },
-            optimize_for="IMPRESSIONS"
+                "publisher_platforms": ["facebook", "instagram"]
+            }
         )
-
-        # Example 3: Using flexible_spec for AND logic targeting
-        # Target people interested in BOTH cooking AND small business
-        estimate = get_reachestimate(
-            act_id="act_123456789",
-            targeting_spec={
-                "geo_locations": {"countries": ["US"]},
-                "flexible_spec": [
-                    {"user_adclusters": [{"id": 6002714885172, "name": "Cooking"}]},
-                    {"user_adclusters": [{"id": 6002714898572, "name": "Small Business Owners"}]}
-                ]
-            },
-            optimize_for="LINK_CLICKS"
-        )
-
-        # Example 4: Check if estimate is ready and get audience size with bid estimates
-        result = get_reachestimate(
-            act_id="act_123456789",
-            targeting_spec={
-                "geo_locations": {"countries": ["US", "GB"]},
-                "age_min": 18,
-                "age_max": 65,
-                "publisher_platforms": ["instagram"],
-                "user_os": ["iOS"]
-            },
-            optimize_for="REACH"
-        )
-
-        if result['data'][0]['estimate_ready']:
-            lower = result['data'][0]['users_lower_bound']
-            upper = result['data'][0]['users_upper_bound']
-            print(f"Estimated audience: {lower:,} - {upper:,} users")
-
-            if 'bid_estimations' in result['data'][0]:
-                bids = result['data'][0]['bid_estimations'][0]
-                print(f"Suggested bid range: ${bids['bid_amount_min']/100:.2f} - "
-                      f"${bids['bid_amount_max']/100:.2f}")
         ```
 
     Notes:
         - The 'geo_locations' field with at least 'countries' is REQUIRED in targeting_spec
+        - IMPORTANT: Cannot combine overlapping geo_locations (e.g., countries + regions + cities). Use ONLY one level: either cities with radius, OR regions, OR countries. Overlapping locations will cause API error: "Some of your locations overlap"
         - Use targeting_search() to find valid IDs for interests, behaviors, locations, demographics, etc.
         - Use get_broadtargetingcategories() to find user_adclusters (broad targeting categories)
         - Very specific targeting may result in no estimate or require time to populate
@@ -2867,9 +3053,8 @@ def get_reachestimate(
     # targeting_spec is required and must be JSON encoded
     params['targeting_spec'] = json.dumps(targeting_spec)
 
-    # Add optional parameters
-    if optimize_for is not None:
-        params['optimize_for'] = optimize_for
+    # Note: optimize_for parameter is not supported by the reachestimate endpoint
+    # It was removed as it causes API errors
 
     return _make_graph_api_call(url, params)
 
