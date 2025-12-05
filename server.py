@@ -2646,6 +2646,183 @@ def targeting_search(
 
 
 @mcp.tool()
+def generic_targeting_search(
+    act_id: str,
+    q: Optional[str] = None,
+    limit: Optional[int] = 100,
+    limit_type: Optional[str] = None,
+    locale: Optional[str] = None
+) -> Dict:
+    """Search for detailed targeting audiences across multiple targeting types.
+
+    This tool searches the Detailed Targeting API to find audiences for ads. Unlike targeting_search
+    which searches one type at a time, this can search across all targeting types simultaneously.
+
+    Args:
+        act_id (str): The ad account ID, prefixed with 'act_', e.g., 'act_1234567890'.
+
+        q (Optional[str]): Search query string.
+            Examples: "harvard", "engineer", "coffee", "technology"
+            Returns audiences matching the query across all targeting types.
+
+        limit (Optional[int]): Maximum number of results to return. Default is 25.
+
+        limit_type (Optional[str]): Limit results to a specific targeting type.
+            Valid values:
+            - 'interests': Interest-based targeting
+            - 'education_schools': Educational institutions
+            - 'education_majors': College majors/fields of study
+            - 'work_positions': Job titles
+            - 'work_employers': Employers/companies
+            - 'relationship_statuses': Relationship status targeting
+            - 'college_years': College graduation years
+            - 'education_statuses': Education level targeting
+            - 'family_statuses': Family status targeting
+            - 'industries': Industry targeting
+            - 'life_events': Life event targeting
+            - 'behaviors': Behavioral targeting
+            - 'income': Income-based targeting
+
+            If not provided, searches all types (filtered for audiences >2000 people).
+
+        locale (Optional[str]): Language/locale for displaying audience names and descriptions.
+            Format: language_COUNTRY (e.g., "en_US", "es_ES", "fr_FR", "de_DE")
+            Defaults to the ad account's locale.
+
+    Returns:
+        Dict: A dictionary containing targeting search results:
+            - 'data': List of targeting audience objects, each containing:
+                - 'id' (str): Target audience ID
+                - 'name' (str): Name of the target audience
+                - 'type' (str): Type of targeting (interests, work_positions, etc.)
+                - 'audience_size_lower_bound' (int): Estimated minimum audience size
+                - 'audience_size_upper_bound' (int): Estimated maximum audience size
+                - 'path' (list): Category hierarchy the targeting falls into
+                - 'description' (str): Description of the target audience
+
+    Examples:
+        ```python
+        # Search for all targeting related to "harvard"
+        results = generic_targeting_search(
+            act_id="act_123456789",
+            q="harvard"
+        )
+        # Returns: Schools, employers, education majors, etc. related to Harvard
+
+        # Search only for job positions
+        results = generic_targeting_search(
+            act_id="act_123456789",
+            q="software engineer",
+            limit_type="work_positions",
+            limit=20
+        )
+        # Returns: Software Engineer, Senior Software Engineer, etc.
+
+        # Search for interests in Spanish
+        results = generic_targeting_search(
+            act_id="act_123456789",
+            q="tecnología",
+            limit_type="interests",
+            locale="es_ES"
+        )
+        # Returns: Technology-related interests with Spanish names
+
+        # Search for employers
+        results = generic_targeting_search(
+            act_id="act_123456789",
+            q="Google",
+            limit_type="work_employers"
+        )
+        # Returns: Google Inc., Google LLC, etc.
+        ```
+
+    Notes:
+        - Without limit_type, results are filtered to audiences with >2000 people
+        - With limit_type, you get more granular results for that specific category
+        - This searches across multiple types, unlike targeting_search which is type-specific
+        - Results include the 'type' field to identify what kind of targeting it is
+    """
+    access_token = _get_fb_access_token()
+    url = f"{FB_GRAPH_URL}/{act_id}/targetingsearch"
+
+    params = {
+        'access_token': access_token
+    }
+
+    if q is not None:
+        params['q'] = q
+
+    if limit is not None:
+        params['limit'] = str(limit)
+
+    if limit_type is not None:
+        params['limit_type'] = limit_type
+
+    if locale is not None:
+        params['locale'] = locale
+
+    return _make_graph_api_call(url, params)
+
+
+@mcp.tool()
+def generic_targeting_search_suggestions(
+    act_id: str,
+    targeting_list: List[Dict[str, str]],
+    limit: Optional[int] = 100,
+    limit_type: Optional[str] = None,
+    locale: Optional[str] = None
+) -> Dict:
+    """Returns additional audiences you can target based on selected audiences you provide.
+
+    This function accesses the targetingsuggestions endpoint to get suggestions based on
+    input targeting criteria. Useful for discovering related interests, behaviors, and
+    demographics to expand your targeting strategy.
+
+    Args:
+        act_id (str): The ID of the ad account, prefixed with 'act_', e.g., 'act_1234567890'.
+        targeting_list (List[Dict[str, str]]): Array of {'type':'{TYPE}', 'id':'{ID}'} pairs
+            as input audience for suggestions. Example:
+            [{'type': 'interests', 'id': '6003401026143'}]
+        limit (Optional[int]): Number of results. Default is 30. Maximum is 45.
+        limit_type (Optional[str]): Limit the type of audience to retrieve. Default to all types.
+            Valid values: interests, education_schools, education_majors, work_positions,
+            work_employers, relationship_statuses, college_years, education_statuses,
+            family_statuses, industries, life_events, behaviors, income.
+        locale (Optional[str]): The locale to display audience names and descriptions.
+            Default to ad account's locale (e.g., 'en_US', 'es_ES').
+
+    Returns:
+        Dict: A dictionary containing suggested targeting options with their IDs, names,
+            types, audience sizes, and descriptions.
+
+    Example:
+        >>> result = generic_targeting_search_suggestions(
+        ...     act_id='act_123456789',
+        ...     targeting_list=[{'type': 'interests', 'id': '6003401026143'}],
+        ...     limit=100
+        ... )
+    """
+    access_token = _get_fb_access_token()
+    url = f"{FB_GRAPH_URL}/{act_id}/targetingsuggestions"
+
+    params = {
+        'access_token': access_token,
+        'targeting_list': json.dumps(targeting_list)
+    }
+
+    if limit is not None:
+        params['limit'] = str(limit)
+
+    if limit_type is not None:
+        params['limit_type'] = limit_type
+
+    if locale is not None:
+        params['locale'] = locale
+
+    return _make_graph_api_call(url, params)
+
+
+@mcp.tool()
 def get_broadtargetingcategories(
     act_id: str,
     custom_categories_only: Optional[bool] = None,
